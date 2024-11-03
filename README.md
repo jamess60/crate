@@ -4,12 +4,13 @@
 CRATE is a utility I wrote in my final days at CERN to facilitate the backup and restore of local container data (Docker, podman etc). This is a majorly re-factored fork to remove any CERN branding or propriatery libraries, but also add some new features.
 
 CRATE has 2 modes:
-- backup-local (Runs on localhost, silent with cron, backups up data to a local path)
+- backup-local (Runs on localhost, auto/silent with cron/sysd, backups up data to a local path and optionally a local or sftp offsite path)
 - recover-local (Runs on the local host, restores a backup archive to the data path - interactive only)
-It used to support backup remote and recover remote (multi host single instance via SFTP), but this was deprecated due to design shortfalls and reliability issues. 
+CRATE used to support backup remote and recover remote (multi host single instance via SFTP), but this was deprecated due to design shortfalls and reliability issues. 
 
 For EL distibutions, there is a draft spec file included (in example dir) if you wish to build and distribute as RPM.
 For any other distro, you will need to manually git clone to /usr/share and configure cron (example also included).
+I may consider the inclusion of CRATE as a container in an upcomming release.
 
 CRATE requires container data to be stored in a local directory, NOT within a docker volume. This is for 2 reasons - Firstly, this tool was initally designed to be used primarily with a really old Podman version where volumes weren't mature, Secondly, I much prefer a flat file system approach for my production containers as I like to know where my critical data actually lives. If docker volume support is heavily demanded, I may implement this in the future...
 
@@ -25,6 +26,7 @@ ______________________
 	- ast
 	- configparser
 	- datetime
+	- pysftp
 3) Edit conf/config.ini to configure CRATE for your environment
 4) Run CRATE with syntax: `python3 src/crate.py -m $mode $args` (or let cron take care of it...)
 
@@ -81,7 +83,7 @@ This section provides an explanation for each configurable within the config fil
 | Configurable              | Description                                                              |
 |---------------------------|--------------------------------------------------------------------------|
 | OFFSITE_BACKUP_ENABLED    | "True" or "False" Enables/Disables creating a 2nd offsite copy           |
-| OFFSITE_BACKUP_MODE       | "Local" (copies to a local file path) or "sftp" - Uploads to SFTP server |
+| OFFSITE_BACKUP_MODE       | "local" (copies to a local file path) or "sftp" - Uploads to SFTP server |
 | LOCAL_OFFSITE_BACKUP_DIR  | Path for offsite backup in local mode                                    |
 | SFTP_USER                 | Username for SFTP Server                                                 |
 | SFTP_PASS                 | Password for SFTP Server                                                 |
@@ -109,6 +111,7 @@ Im a solo SysAdmin/Homelabber who wrote CRATE to automatically backup my own con
 
 
 
-
+## Screenshot
+![screenshot](https://jamesmaple.co.uk/downloads/gitimg/crate/readme-screenshot.png)
 
 	
