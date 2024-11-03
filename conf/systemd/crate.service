@@ -1,0 +1,11 @@
+[Unit]
+Description=CRATE (Container Recovery and Archival ToolsEt)
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/share/crate/src/crate.py -m bl
+User=root
+
+
+
+# Put me in /etc/systemd/system/ and run systemctl daemon-reload

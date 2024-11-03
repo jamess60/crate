@@ -1,0 +1,13 @@
+[Unit]
+Description=Runs CRATE every day at 1am
+
+[Timer]
+Unit=crate.service
+OnCalendar=*-*-* 01:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+
+# Put me in /etc/systemd/system/ and run systemctl daemon-reload

@@ -1,0 +1,2 @@
+#Enable CRATE
+00 03 * * *	/usr/bin/python3 /usr/share/crate/src/crate.py -m bl 
