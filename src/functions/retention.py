@@ -2,10 +2,11 @@ import datetime
 import os
 import pysftp
 from functions import script
+from functions import ntfy
 
 
 
-def localhost_basic_retention(DEST_DIR, LOCAL_RETENTION_PERIOD_DAYS):
+def localhost_basic_retention(DEST_DIR, LOCAL_RETENTION_PERIOD_DAYS, NTFY_ENABLED):
     today = datetime.datetime.now()
     retention_delta = datetime.timedelta(days=LOCAL_RETENTION_PERIOD_DAYS)
 
@@ -42,13 +43,15 @@ def localhost_basic_retention(DEST_DIR, LOCAL_RETENTION_PERIOD_DAYS):
 
     if delete_errors:
         print("RETENTION DEBUG - " + str(delete_errors))
+        if NTFY_ENABLED == True:
+            ntfy.ntfy_warn_local_retention_error()
 
     script.ok_msg("Retention cleanup complete\n\n")
 
 
 
 
-def sftp_basic_retention(HOSTS, SFTP_USER, SFTP_PASS, SFTP_HOST, SFTP_PATH, OFFSITE_RETENTION_PERIOD_DAYS):
+def sftp_basic_retention(HOSTS, SFTP_USER, SFTP_PASS, SFTP_HOST, SFTP_PATH, OFFSITE_RETENTION_PERIOD_DAYS, NTFY_ENABLED):
     # Combine the SFTP path with the HOSTS variable to form the full path
     directory_path = os.path.join(SFTP_PATH, HOSTS)
 
@@ -87,6 +90,8 @@ def sftp_basic_retention(HOSTS, SFTP_USER, SFTP_PASS, SFTP_HOST, SFTP_PATH, OFFS
             print(f"Directory {directory_path} not found.")
         except Exception as e:
             print(f"An error occurred: {e}")
+            if NTFY_ENABLED == True:
+                ntfy.ntfy_warn_sftp_retention_error()
 
         script.ok_msg("Retention cleanup complete\n\n")
 

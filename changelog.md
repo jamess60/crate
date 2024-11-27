@@ -1,5 +1,10 @@
 ## Change log
 
+### V 1.2
+- Implement ntfy notifications
+- Added some missing error messages before exit conditions
+
+
 ### V 1.1
 - Broke changelog out into its own file
 - Moved issues from readme to git issues 

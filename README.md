@@ -95,10 +95,18 @@ This section provides an explanation for each configurable within the config fil
 ### Retention
 | Configurable                  | Description                                                               |
 |-------------------------------|---------------------------------------------------------------------------|
-| LOCAL_RETENTION_ENABLED       | "True" or "False" Enables/Disables retentionc cleanup on the local copy   |
-| OFFSITE_RETENTION_ENABLED     | "True" or "False" Enables/Disables retentionc cleanup on the offsite copy |
+| LOCAL_RETENTION_ENABLED       | "True" or "False" Enables/Disables retention cleanup on the local copy    |
+| OFFSITE_RETENTION_ENABLED     | "True" or "False" Enables/Disables retention cleanup on the offsite copy  |
 | LOCAL_RETENTION_PERIOD_DAYS   | Store backups for X days. Older backups will be deleted.                  |
 | OFFSITE_RETENTION_PERIOD_DAYS | Store backups for X days. Older backups will be deleted.                  |
+
+
+### NTFY
+| Configurable                  | Description                                                               |
+|-------------------------------|---------------------------------------------------------------------------|
+| NTFY_ENABLED                  | "True" or "False" Enables/Disables Ntfy notifications                     |
+| NTFY_HOST                     | Ntfy server URL                                                           |
+| NTFY_TOPIC                    | Ntfy topic to subscribe to                                                |
 
 
 

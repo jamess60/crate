@@ -9,6 +9,8 @@ import paramiko
 import pwd
 import re
 from functions import script
+from functions import ntfy
+
 
 
 
@@ -44,7 +46,7 @@ def create_hostname_subdirs(HOSTS, DEST_DIR, RUN_MODE):
 
 
 
-def perform_backup_local(SOURCE_DIR, DEST_DIR):
+def perform_backup_local(SOURCE_DIR, DEST_DIR, NTFY_ENABLED):
     datetime_str = datetime.datetime.now().strftime('%Y-%m-%d---%H-%M-%S')
     hostname = socket.gethostname()
     print("\n\n")
@@ -69,12 +71,14 @@ def perform_backup_local(SOURCE_DIR, DEST_DIR):
     except zipfile.BadZipFile:
         archive = "bad"
         script.warn_msg("The backup archive is potentially corrupt: " + validate_me)
+        ntfy.ntfy_warn_ZIP_validation_fail()
     if archive == 'good':
         script.ok_msg("Backup archive passed validation check.")
         os.system("rm -rf /tmp/crate-scratch")
         script.ok_msg("Backup task complete!\n\n")
     else:
         script.err_msg("Backup archive FAILED validation check.")
+        ntfy.ntfy_err_ZIP_validation_fail()
 
     # This is the path of the created backup archive, returned so offsite def can use it
     return validate_me 
@@ -118,11 +122,13 @@ def perform_recovery_local(RECOVERY_ZIP, SOURCE_DIR, SKIP_RM):
 
 
 
-def copy_to_offsite_dir(zip_to_offsite, OFFSITE_PATH, HOSTS): 
+def copy_to_offsite_dir(zip_to_offsite, OFFSITE_PATH, HOSTS, NTFY_ENABLED): 
 
 # Check if the ZIP file exists
     if not os.path.isfile(zip_to_offsite):
         script.err_msg(f"The file {zip_to_offsite} does not exist.")
+        if NTFY_ENABLED == True:
+            ntfy.ntfy_err_offsite_fail_no_zip()
         return
     
     # Check if the destination path is a directory
@@ -139,9 +145,13 @@ def copy_to_offsite_dir(zip_to_offsite, OFFSITE_PATH, HOSTS):
             os.makedirs(hostname_path)
         except PermissionError as e:
             script.err_msg(f"Permission error while creating directory {hostname_path}: {e}")
+            if NTFY_ENABLED == True:
+                ntfy.ntfy_err_offsite_local_fail_dir_create()
             return
         except Exception as e:
             script.err_msg(f"An error occurred while creating directory {hostname_path}: {e}")
+            if NTFY_ENABLED == True:
+                ntfy.ntfy_err_offsite_local_fail_dir_create()
             return
     
     # Construct the destination path for the copied file
@@ -152,10 +162,16 @@ def copy_to_offsite_dir(zip_to_offsite, OFFSITE_PATH, HOSTS):
         # Copy the file to the destination directory
         shutil.copy(zip_to_offsite, destination)
         script.ok_msg(f"Successfully copied {zip_to_offsite} to {destination}.")
+        if NTFY_ENABLED == True:
+                ntfy.ntfy_ok_offsite_local_complete() 
     except PermissionError as e:
         script.err_msg(f"Permission error: {e}")
+        if NTFY_ENABLED == True:
+                ntfy.ntfy_err_offsite_local_fail_copy()
     except Exception as e:
         script.err_msg(f"An error occurred: {e}")
+        if NTFY_ENABLED == True:
+                ntfy.ntfy_err_offsite_local_fail_copy()
 
 
 

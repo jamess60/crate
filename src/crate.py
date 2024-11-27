@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
 __author__ = "james_s60"
-__date__ = "02 Nov 2024"
+__date__ = "27 Nov 2024"
 __credits__ = ["james_s60"]
-__version__ = "1.1"
+__version__ = "1.2"
 
 
 
@@ -23,6 +23,7 @@ from functions import retention
 from functions import rwcheck
 from functions import script
 from functions import sftp
+from functions import ntfy
 
 
 config = ConfigParser()
@@ -85,6 +86,10 @@ LOCAL_RETENTION_ENABLED = config['RETENTION'].getboolean('LOCAL_RETENTION_ENABLE
 OFFSITE_RETENTION_ENABLED = config['RETENTION'].getboolean('OFFSITE_RETENTION_ENABLED')
 LOCAL_RETENTION_PERIOD_DAYS = int(config['RETENTION']['LOCAL_RETENTION_PERIOD_DAYS'])
 OFFSITE_RETENTION_PERIOD_DAYS = int(config['RETENTION']['OFFSITE_RETENTION_PERIOD_DAYS'])
+# Ntfy
+NTFY_ENABLED = config['NTFY'].getboolean('NTFY_ENABLED')
+# NTFY_HOST = str(config['NTFY']['NTFY_HOST'])     - This is now parsed directly in src/functions/ntfy.py!
+# NTFY_TOPIC = str(config['NTFY']['NTFY_TOPIC'])   - This is now parsed directly in src/functions/ntfy.py!
 ############################
 
 
@@ -94,18 +99,28 @@ OFFSITE_RETENTION_PERIOD_DAYS = int(config['RETENTION']['OFFSITE_RETENTION_PERIO
 # Sanity check arguments
 if FIX_PERMS == True and RUN_MODE not in {"recover-local", "rl"}:
     script.err_msg("Fix Permissions argument specificed but CRATE is running in recovery mode. Program will exit.\n\n")
+    if NTFY_ENABLED == True:
+        ntfy.ntfy_err_FP_wrong_mode_fail()
     exit()
 if RUN_MODE == "backup-local" or RUN_MODE == "bl" and RECOVERY_ZIP is not None:
     script.err_msg("Zip file argument specificed but CRATE is running in backup mode. Program will exit.\n\n")
+    if NTFY_ENABLED == True:
+        ntfy.ntfy_err_ZIP_wrong_mode_fail()
     exit()
 if RUN_MODE == "backup-local" or RUN_MODE == "bl" and SKIP_RM is True:
     script.err_msg("SRM argument specificed but CRATE is running in backup mode. Program will exit.\n\n")
+    if NTFY_ENABLED == True:
+        ntfy.ntfy_err_SRM_wrong_mode_fail()
     exit()
 if RUN_MODE == "backup-local" or RUN_MODE == "bl" and FIX_PERMS is True:
     script.err_msg("Fix Permissions argument specificed but CRATE is running in backup mode. Program will exit.\n\n")
+    if NTFY_ENABLED == True:
+        ntfy.ntfy_err_FP_wrong_mode_fail()
     exit()
 if RUN_MODE == "recover-local" or RUN_MODE == "rl" and RECOVERY_ZIP is None:
     script.err_msg("ZIP file not specified. Program will exit.\n\n")
+    if NTFY_ENABLED == True:
+        ntfy.ntfy_err_ZIP_missing_fail()
     exit()
 
 
@@ -117,26 +132,36 @@ if RUN_MODE == "backup-local" or RUN_MODE == "bl":
 
     source_dir_readable = rwcheck.check_source_readable(SOURCE_DIR) # Will call exit() if unreadables are found
     if source_dir_readable == False:
+        script.err_msg("Source dir is not readable. Program will exit.\n\n")
+        if NTFY_ENABLED == True:
+            ntfy.ntfy_err_source_dir_unreadable_fail()
         exit()
 
     dest_dir_writable = rwcheck.check_destination_writable(DEST_DIR) # Will call exit() if unwritable
     if dest_dir_writable == False:
+        script.err_msg("Source dir is not readable. Program will exit.\n\n")
+        if NTFY_ENABLED == True:
+            ntfy.ntfy_err_dest_dir_unwriteable_fail()
         exit()
 
     
     if source_dir_readable == True and dest_dir_writable == True:
         file.create_hostname_subdirs(HOSTS, DEST_DIR, RUN_MODE)
-        zip_to_offsite = file.perform_backup_local(SOURCE_DIR, DEST_DIR) # Will call exit() if zip fails validity check
-
+        zip_to_offsite = file.perform_backup_local(SOURCE_DIR, DEST_DIR, NTFY_ENABLED)
+        # Errors & Ntfy are handled within perform_backup_local
 
 
     # Run retention on local
     if LOCAL_RETENTION_ENABLED == True:
         script.info_msg("Running retention cleanup on local copy. Retention period: " + str(LOCAL_RETENTION_PERIOD_DAYS) + " days")
-        retention.localhost_basic_retention(DEST_DIR, LOCAL_RETENTION_PERIOD_DAYS)
+        retention.localhost_basic_retention(DEST_DIR, LOCAL_RETENTION_PERIOD_DAYS, NTFY_ENABLED)
     else:
         script.info_msg("Local retention cleanup disabled, skipping retention cleanup.\n\n")
 
+
+    # Ntfy for local backup completion
+    if NTFY_ENABLED == True:
+        ntfy.ntfy_ok_local_backup_complete()
 
 
     # Run Offsite backup
@@ -145,11 +170,13 @@ if RUN_MODE == "backup-local" or RUN_MODE == "bl":
 
 
         if OFFSITE_BACKUP_MODE == "local":
-            file.copy_to_offsite_dir(zip_to_offsite, LOCAL_OFFSITE_BACKUP_DIR, HOSTS)
+            file.copy_to_offsite_dir(zip_to_offsite, LOCAL_OFFSITE_BACKUP_DIR, HOSTS, NTFY_ENABLED)
+            #Ntfy handled within function
 
 
         if OFFSITE_BACKUP_MODE == "sftp":
-            sftp.copy_to_sftp_dir(zip_to_offsite, HOSTS, SFTP_USER, SFTP_PASS, SFTP_HOST, SFTP_PATH)
+            sftp.copy_to_sftp_dir(zip_to_offsite, HOSTS, SFTP_USER, SFTP_PASS, SFTP_HOST, SFTP_PATH, NTFY_ENABLED)
+            #Ntfy handled within function
 
     else:
         script.info_msg("Offsite backup disabled, skipping...")
@@ -161,10 +188,10 @@ if RUN_MODE == "backup-local" or RUN_MODE == "bl":
         script.info_msg("Running retention cleanup on offsite copy. Retention period: " + str(LOCAL_RETENTION_PERIOD_DAYS) + " days")
 
         if OFFSITE_BACKUP_MODE == "local":
-            retention.localhost_basic_retention(LOCAL_OFFSITE_BACKUP_DIR, LOCAL_RETENTION_PERIOD_DAYS)
+            retention.localhost_basic_retention(LOCAL_OFFSITE_BACKUP_DIR, LOCAL_RETENTION_PERIOD_DAYS, NTFY_ENABLED)
         
         elif OFFSITE_BACKUP_MODE == "sftp":
-            retention.sftp_basic_retention(HOSTS, SFTP_USER, SFTP_PASS, SFTP_HOST, SFTP_PATH, OFFSITE_RETENTION_PERIOD_DAYS)
+            retention.sftp_basic_retention(HOSTS, SFTP_USER, SFTP_PASS, SFTP_HOST, SFTP_PATH, OFFSITE_RETENTION_PERIOD_DAYS, NTFY_ENABLED)
 
     else:
         script.info_msg("Offsite retention cleanup disabled, skipping retention cleanup.")
@@ -202,10 +229,16 @@ elif RUN_MODE == "recover-local" or RUN_MODE == "rl":
             recovery_status = file.perform_recovery_local(RECOVERY_ZIP, SOURCE_DIR, SKIP_RM) # Will call exit if no perms to delete SOURCE_DIR and -srm is not used
             if recovery_status == "ok":
                 script.ok_msg("Recovery successful!\n\n")
+                if NTFY_ENABLED == True:
+                    ntfy.ntfy_ok_recovery_sucess()
             if recovery_status == "badzip":
                 script.err_msg("Recovery failed due to an invalid zip archive. Try again as root or with a different archive.\n\n")
+                if NTFY_ENABLED == True:
+                    ntfy.ntfy_err_recovery_zip_error()
             if recovery_status == "error":
                 script.err_msg("Recovery failed due to an unknown error. Try again as root or with a different archive.\n\n\\s")
+                if NTFY_ENABLED == True:
+                    ntfy.ntfy_err_recovery_unknown_error()
 
             if FIX_PERMS == True:
                 perms_valid = file.sanity_check_permission_config(CONTAINER_USER, PERMISSION)
@@ -213,6 +246,8 @@ elif RUN_MODE == "recover-local" or RUN_MODE == "rl":
                     file.fix_recovery_permissions(SOURCE_DIR, CONTAINER_USER, PERMISSION) # Will call exit if not running as root
                 else:
                     script.err_msg("Permission configuration sanity check failed. Program will now exit...")
+                    if NTFY_ENABLED == True:
+                        ntfy.ntfy_err_recovery_unknown_error()
                     exit()
             else:
                 script.info_msg("Fix permissions was not specified - skipping... (use -fp and try again as root if this was unintentional)")
@@ -223,6 +258,8 @@ elif RUN_MODE == "recover-local" or RUN_MODE == "rl":
 
 else:
     script.err_msg("Invalid run mode selected.\nRun with -m [bl,rl] or --help for more.\n\n")
+    if NTFY_ENABLED == True:
+        ntfy.ntfy_err_invalid_run_mode()
     exit()
 
 
